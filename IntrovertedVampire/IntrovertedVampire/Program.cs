@@ -5,7 +5,7 @@ using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 
-#region Small domain types
+#region Structs/classes
 
 // Pixel-space rectangle with top-left origin (0,0) at the window's top-left.
 struct Rect
@@ -33,7 +33,7 @@ class Door
 
 #endregion
 
-#region Simple 2D rectangle renderer (unit quad + MVP)
+#region Rectangle renderer
 
 class RectRenderer : IDisposable
 {
@@ -55,17 +55,20 @@ class RectRenderer : IDisposable
             0f, 1f,
         ];
 
-        // generate vao and vbo
+        // generate vao
         _vao = GL.GenVertexArray();
-        _vbo = GL.GenBuffer();
-        
         GL.BindVertexArray(_vao);
+
+        // generate vbo
+        _vbo = GL.GenBuffer();
         GL.BindBuffer(BufferTarget.ArrayBuffer, _vbo);
         GL.BufferData(BufferTarget.ArrayBuffer, verts.Length * sizeof(float), verts, BufferUsageHint.StaticDraw);
 
-        GL.EnableVertexAttribArray(0);
-        GL.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, 2 * sizeof(float), 0);
 
+        GL.EnableVertexAttribArray(0); // tells opengl where vertices are (turn on vertex input at position 0)
+        GL.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, 2 * sizeof(float), 0); // tells opengl to actually use them
+
+        // shader stuff
         _shader = new Shader(VertexSrc, FragmentSrc);
 
         // unbind
@@ -77,15 +80,24 @@ class RectRenderer : IDisposable
     {
         _shader.Use();
 
-        // Model = translate(x,y) * scale(w,h)
-        var model =
-            Matrix4.CreateScale(rect.W, rect.H, 1f) *
-            Matrix4.CreateTranslation(rect.X, rect.Y, 0f);
+        // model = translate(x,y) * scale(w,h) -> converts local vertex positions into pixel coordinates for rect
+        var model =  Matrix4.CreateScale(rect.W, rect.H, 1f) * Matrix4.CreateTranslation(rect.X, rect.Y, 0f);
 
+        // combines model and projection into single matrix for ndc, cuz it's what gpu expects
         var mvp = model * proj; // proj is orthographic (pixels → NDC)
 
-        _shader.Set("uMVP", mvp);
-        _shader.Set("uColor", rgb);
+        // THIS IS ALL THEORY SO JUST WRITING IT HERE AS REMINDER CUZ FUCK LOW LEVEL SHIT
+        // the 'travel route' of a vertex is: local -> world -> view -> clip -> ndc -> screen
+        // the vertices created are in local space, which are converted into world space with model matrix
+        // because this is a 2D proejct, view space is skipped. clip space happens with uMVP, now we have -w and +w
+        // after clipping, gpu divides everything by w (x' = x/w, y' = x/w and so on) to make all coodinates between -1 and +1
+        // this aligns us with the opengl coords we're comfy with (-1, -1 is bottom left, -1 z is near and such)
+        // clip to ndc happens in the function below (UpdateProjection())
+        // finally, gpu converts ndc into pixel positions with viewport size (0,0 is bottom left; width,height s top right etc.)
+
+        // sets the uniforms
+        _shader.Set("uMVP", mvp); // uploads mvp matrix and color to shader uniform named umvp
+        _shader.Set("uColor", rgb); // uColor is output color
 
         GL.BindVertexArray(_vao);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
@@ -99,85 +111,101 @@ class RectRenderer : IDisposable
         _shader?.Dispose();
     }
 
-    // Using explicit \n to avoid any accidental formatting issues
+    // GLSL type shit
+    // these two are shader objects, we can compile them with input/outputs
+    // then we can link them and get a "program object". this determines how we handle vertices
+    // uniforms are set from the CPU side (C#) and stay the same for all vertices/pixels during one draw call
     private const string VertexSrc =
-        "#version 330 core\n" +
-        "layout (location = 0) in vec2 aPos;\n" +
-        "uniform mat4 uMVP;\n" +
+        "#version 330 core\n" + // version
+
+        // basically transform rectangle/s local coordinates into screen coordinates
+        "layout (location = 0) in vec2 aPos;\n" + // input vertex positions from vao/vbo
+        "uniform mat4 uMVP;\n" + // "camera matrix"
+
         "void main(){\n" +
-        "    gl_Position = uMVP * vec4(aPos, 0.0, 1.0);\n" +
+        "    gl_Position = uMVP * vec4(aPos, 0.0, 1.0);\n" + // called for per vertex, converts vertices into clip-space position
         "}\n";
 
     private const string FragmentSrc =
         "#version 330 core\n" +
-        "out vec4 FragColor;\n" +
-        "uniform vec3 uColor;\n" +
+
+        "out vec4 FragColor;\n" + // color of each pixel
+        "uniform vec3 uColor;\n" + // rgb color sent from cpu
+
         "void main(){\n" +
-        "    FragColor = vec4(uColor, 1.0);\n" +
+        "    FragColor = vec4(uColor, 1.0);\n" + // called for per pixel, combines and outputs final color value
         "}\n";
 }
 
 #endregion
 
-#region Tiny shader helper
+#region Shader helper
 
 class Shader : IDisposable
 {
-    public int Handle { get; }
+    public int compiledProgramID { get; }
 
     public Shader(string vertexSource, string fragmentSource)
     {
-        int vs = Compile(ShaderType.VertexShader, vertexSource);
-        int fs = Compile(ShaderType.FragmentShader, fragmentSource);
+        // compile sources
+        int vertexShader = Compile(ShaderType.VertexShader, vertexSource);
+        int fragmentShader = Compile(ShaderType.FragmentShader, fragmentSource);
 
-        Handle = GL.CreateProgram();
-        GL.AttachShader(Handle, vs);
-        GL.AttachShader(Handle, fs);
-        GL.LinkProgram(Handle);
-        GL.GetProgram(Handle, GetProgramParameterName.LinkStatus, out int ok);
+        compiledProgramID = GL.CreateProgram(); // allocates a program object and returns int handle
+
+        // attach the compiled shaders into the handle, then link it
+        GL.AttachShader(compiledProgramID, vertexShader);
+        GL.AttachShader(compiledProgramID, fragmentShader);
+        GL.LinkProgram(compiledProgramID);
+        GL.GetProgram(compiledProgramID, GetProgramParameterName.LinkStatus, out int ok);
         if (ok == 0)
         {
-            string info = GL.GetProgramInfoLog(Handle);
+            string info = GL.GetProgramInfoLog(compiledProgramID);
             throw new Exception($"Program link error:\n{info}");
         }
-        GL.DetachShader(Handle, vs);
-        GL.DetachShader(Handle, fs);
-        GL.DeleteShader(vs);
-        GL.DeleteShader(fs);
+
+        // detach and delete stuff
+        GL.DetachShader(compiledProgramID, vertexShader);
+        GL.DetachShader(compiledProgramID, fragmentShader);
+        GL.DeleteShader(vertexShader);
+        GL.DeleteShader(fragmentShader);
     }
 
     private static int Compile(ShaderType type, string src)
     {
-        int sh = GL.CreateShader(type);
-        GL.ShaderSource(sh, src);
-        GL.CompileShader(sh);
-        GL.GetShader(sh, ShaderParameter.CompileStatus, out int ok);
+        int shader = GL.CreateShader(type);
+        GL.ShaderSource(shader, src);
+        GL.CompileShader(shader);
+        GL.GetShader(shader, ShaderParameter.CompileStatus, out int ok);
         if (ok == 0)
         {
-            string info = GL.GetShaderInfoLog(sh);
+            string info = GL.GetShaderInfoLog(shader);
             throw new Exception($"{type} compile error:\n{info}");
         }
-        return sh;
+        return shader;
     }
 
-    public void Use() => GL.UseProgram(Handle);
+    public void Use() => GL.UseProgram(compiledProgramID);
 
-    public void Set(string name, Matrix4 value)
+    // these set functions upload uniform values from C# into the GPU shader uniforms
+    public void Set(string name, Matrix4 value) // matrix version
     {
-        int loc = GL.GetUniformLocation(Handle, name);
-        GL.UniformMatrix4(loc, false, ref value);
+        int location = GL.GetUniformLocation(compiledProgramID, name);
+        GL.UniformMatrix4(location, false, ref value); // this says "replace uMVP in the shader with this matrix"
     }
 
-    public void Set(string name, Vector3 value)
+    public void Set(string name, Vector3 value) // vector3 version
     {
-        int loc = GL.GetUniformLocation(Handle, name);
-        GL.Uniform3(loc, value);
+        int location = GL.GetUniformLocation(compiledProgramID, name);
+        GL.Uniform3(location, value); // this says "replace uColor in the shader with this rgb value"
     }
 
-    public void Dispose() => GL.DeleteProgram(Handle);
+    public void Dispose() => GL.DeleteProgram(compiledProgramID);
 }
 
 #endregion
+
+#region Game Code
 
 class Game : GameWindow
 {
@@ -190,7 +218,7 @@ class Game : GameWindow
     public Game()
         : base(GameWindowSettings.Default, new NativeWindowSettings
         {
-            Title = "FNAF-like Prototype",
+            Title = "Introverted Vampire",
             ClientSize = new Vector2i(1280, 720),
             Flags = ContextFlags.ForwardCompatible,
         })
@@ -204,21 +232,22 @@ class Game : GameWindow
 
         _renderer = new RectRenderer();
         UpdateProjection();
+        // we have to update projection before drawing because the uMVP matrix must be updated with correct projection
 
         // Lay out doors as big vertical panels on left/right with a small margin.
         float margin = 20f;
         float half = Size.X / 2f;
 
         _leftDoor = new Door(
-            "LEFT",
-            new Rect(margin, margin, half - margin * 1.5f, Size.Y - margin * 2f),
-            new Vector3(0.20f, 0.35f, 0.80f) // bluish
+            "left",
+            new Rect(margin, margin, half - margin * 1.5f, Size.Y),
+            new Vector3(0.20f, 0.35f, 0.80f) // blue
         );
 
         _rightDoor = new Door(
-            "RIGHT",
+            "right",
             new Rect(half + margin * 0.5f, margin, half - margin * 1.5f, Size.Y - margin * 2f),
-            new Vector3(0.80f, 0.35f, 0.20f) // reddish
+            new Vector3(0.80f, 0.35f, 0.20f) // orange
         );
     }
 
@@ -241,10 +270,13 @@ class Game : GameWindow
     private void UpdateProjection()
     {
         // Orthographic projection mapping pixels → NDC, with (0,0) at top-left.
-        _projPixelsToNdc = Matrix4.CreateOrthographicOffCenter(
-            0, Size.X,
-            Size.Y, 0,   // invert Y to make +Y downward
-            -1, 1);
+        _projPixelsToNdc = Matrix4.CreateOrthographicOffCenter
+        (
+            0     , Size.X,
+            Size.Y, 0     ,   // invert Y to make +Y downward
+            -1    , 1
+        );
+        // left, right, bottom, top, near, far
     }
 
     protected override void OnRenderFrame(FrameEventArgs args)
@@ -270,9 +302,9 @@ class Game : GameWindow
         var p = new Vector2(MousePosition.X, MousePosition.Y); // top-left origin
 
         if (_leftDoor.Bounds.Contains(p))
-            Console.WriteLine("The LEFT door was clicked");
+            Console.WriteLine("The left door was clicked");
         else if (_rightDoor.Bounds.Contains(p))
-            Console.WriteLine("The RIGHT door was clicked");
+            Console.WriteLine("The right door was clicked");
         else
             Console.WriteLine("Clicked background");
     }
@@ -299,3 +331,5 @@ class Program
         game.Run();
     }
 }
+
+#endregion

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("IntrovertedVampire")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+af3a93fbc14d27de15ff67defdacfd753cedf306")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8e15df5b6fdb51ffb443d08276052880ef80c719")]
 [assembly: System.Reflection.AssemblyProductAttribute("IntrovertedVampire")]
 [assembly: System.Reflection.AssemblyTitleAttribute("IntrovertedVampire")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
