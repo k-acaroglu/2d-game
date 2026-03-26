@@ -1,9 +1,9 @@
 using System;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
-using FnafLike.Game;
+using IntrovertedVampire.Game;
 
-namespace FnafLike.Graphics;
+namespace IntrovertedVampire.Graphics;
 
 #region Rectangle renderer
 
@@ -47,7 +47,7 @@ class RectRenderer : IDisposable
         GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
     }
 
-    public void Draw(Rect rect, Vector3 rgb, Matrix4 proj)
+    public void Draw(Rect rect, Vector4 rgba, Matrix4 proj)
     {
         _shader.Use();
 
@@ -68,7 +68,7 @@ class RectRenderer : IDisposable
 
         // sets the uniforms
         _shader.Set("uMVP", mvp); // uploads mvp matrix and color to shader uniform named umvp
-        _shader.Set("uColor", rgb); // uColor is output color
+        _shader.Set("uColor", rgba); // uColor is output color
 
         GL.BindVertexArray(_vao);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
@@ -101,10 +101,10 @@ class RectRenderer : IDisposable
         "#version 330 core\n" +
 
         "out vec4 FragColor;\n" + // color of each pixel
-        "uniform vec3 uColor;\n" + // rgb color sent from cpu
+        "uniform vec4 uColor;\n" + // rgb color sent from cpu
 
         "void main(){\n" +
-        "    FragColor = vec4(uColor, 1.0);\n" + // called for per pixel, combines and outputs final color value
+        "    FragColor = uColor;\n" + // called for per pixel, combines and outputs final color value
         "}\n";
 }
 

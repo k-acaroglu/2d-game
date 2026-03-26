@@ -1,6 +1,6 @@
 using OpenTK.Mathematics;
 
-namespace FnafLike.Game;
+namespace IntrovertedVampire.Game;
 
 public class Door
 {

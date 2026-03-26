@@ -2,7 +2,7 @@ using System;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 
-namespace FnafLike.Graphics;
+namespace IntrovertedVampire.Graphics;
 
 #region Shader helper
 
@@ -63,6 +63,12 @@ class Shader : IDisposable
     {
         int location = GL.GetUniformLocation(compiledProgramID, name);
         GL.Uniform3(location, value); // this says "replace uColor in the shader with this rgb value"
+    }
+
+    public void Set(string name, Vector4 value) // vector4 version for rgba with alpha
+    {
+        int location = GL.GetUniformLocation(compiledProgramID, name);
+        GL.Uniform4(location, value);
     }
 
     public void Dispose() => GL.DeleteProgram(compiledProgramID);
