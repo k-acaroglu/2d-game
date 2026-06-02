@@ -9,6 +9,5 @@ Restore and run:
 
 ```bash
 cd IntrovertedVampire
-dotnet restore
-dotnet run
+dotnet run --project ./IntrovertedVampire.csproj
 ```

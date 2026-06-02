@@ -4,16 +4,17 @@ using OpenTK.Mathematics;
 
 public class Game
 {
-    // --- Infrastructure: created once, lives for the whole program ---
+    // ---------- infrastructure
     private readonly GameWindow _window;
     private readonly InputSystem _input;
     private readonly TextRenderer _text;
     private readonly SceneRenderer _renderer;
     private readonly Button _restartButton;
 
-    // --- Game state: thrown away and rebuilt on every restart ---
+    // ----------- game state
     private DoorSystem _doorSystem = null!;
     private MinigameRunner _minigameRunner = null!;
+    // these are null at first cuz they're initialized later in startnewgame function
     private GameMode _mode;
 
     public Game(GameWindow window)
