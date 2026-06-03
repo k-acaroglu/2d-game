@@ -9,8 +9,8 @@ public class DoorSystem
     private float _leftTimer;
     private float _rightTimer;
 
-    private const float MinClosedTime = 5f;
-    private const float MaxClosedTime = 20f;
+    private const float MinClosedTime = 3f;
+    private const float MaxClosedTime = 10f;
 
     public DoorSystem()
     {

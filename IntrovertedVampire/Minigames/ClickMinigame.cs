@@ -6,34 +6,33 @@ public class ClickMinigame : IMinigame
     private readonly int _requiredClicks;
     private int _clickCount = 0;
     private readonly float _buttonX = -0.2f;
-    private readonly float _buttonY = -0.15f;
+    private readonly float _buttonY = -0.1f;
     private readonly float _buttonWidth = 0.4f;
-    private readonly float _buttonHeight = 0.3f;
+    private readonly float _buttonHeight = 0.25f;
+    private readonly TextRenderer _text;
 
     public bool IsCompleted => _clickCount >= _requiredClicks;
     public string Instruction => $"Click the button {_requiredClicks} times!";
 
-    public ClickMinigame(int requiredClicks = 5)
+    public ClickMinigame(int requiredClicks, TextRenderer text)
     {
         _requiredClicks = requiredClicks;
+        _text = text;
     }
 
     public void Update(float deltaTime, InputSystem input)
     {
         if (IsCompleted) return;
-
         if (input.IsMouseClicked && IsMouseOver(input.MousePosition))
-        {
             _clickCount++;
-        }
     }
 
     public void Draw()
     {
-        // Draw button, color shifts from red to green as progress increases
         float progress = (float)_clickCount / _requiredClicks;
         GL.Color3(1f - progress, progress, 0f);
         DrawButton();
+        _text.DrawCentered("CLICK", 0f, _buttonY + 0.1f, 0.05f, Color4.White);
     }
 
     private bool IsMouseOver(OpenTK.Mathematics.Vector2 mousePos)
@@ -44,7 +43,7 @@ public class ClickMinigame : IMinigame
 
     private void DrawButton()
     {
-        GL.Begin(OpenTK.Graphics.OpenGL.PrimitiveType.Quads);
+        GL.Begin(PrimitiveType.Quads);
         GL.Vertex2(_buttonX, _buttonY);
         GL.Vertex2(_buttonX + _buttonWidth, _buttonY);
         GL.Vertex2(_buttonX + _buttonWidth, _buttonY + _buttonHeight);

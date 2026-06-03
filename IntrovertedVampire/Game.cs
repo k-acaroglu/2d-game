@@ -2,6 +2,7 @@ using OpenTK.Windowing.Desktop;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 
+public enum GameMode { Playing, Won, Lost }
 public class Game
 {
     // ---------- infrastructure
@@ -14,7 +15,7 @@ public class Game
     // ----------- game state
     private DoorSystem _doorSystem = null!;
     private MinigameRunner _minigameRunner = null!;
-    // these are null at first cuz they're initialized later in startnewgame function
+    // these are null at first cuz they're initialized later in StartNewGame function
     private GameMode _mode;
 
     public Game(GameWindow window)
@@ -33,10 +34,12 @@ public class Game
         _doorSystem = new DoorSystem();
         _minigameRunner = new MinigameRunner(new IMinigame[]
         {
-            new ClickMinigame(5),
+            new ClickMinigame(20, _text),
+            new TypingMinigame(10, _text),
+            new ReactionMinigame(5)
         });
         _mode = GameMode.Playing;
-        GL.ClearColor(0.1f, 0.1f, 0.15f, 1f);
+        GL.ClearColor(0f, 0f, 0f, 1f);
     }
 
     public void Run()
@@ -47,7 +50,7 @@ public class Game
             switch (_mode)
             {
                 case GameMode.Playing:
-                    UpdatePlaying(GameSetup.TimeDelta);
+                    UpdateGame(GameSetup.TimeDelta);
                     break;
                 case GameMode.Won:
                     UpdateEndScreen("You Win!", new Color4(0f, 0.3f, 0f, 1f));
@@ -59,7 +62,8 @@ public class Game
         } while (_window.NextFrame());
     }
 
-    private void UpdatePlaying(float deltaTime)
+    // handles the main game logic
+    private void UpdateGame(float deltaTime)
     {
         if (_input.IsClickInRect(-1f, -1f, 0.25f, 2f)) _doorSystem.LeftDoor.Close();
         if (_input.IsClickInRect(0.75f, -1f, 0.25f, 2f)) _doorSystem.RightDoor.Close();
@@ -82,5 +86,3 @@ public class Game
         _restartButton.Draw();
     }
 }
-
-public enum GameMode { Playing, Won, Lost }

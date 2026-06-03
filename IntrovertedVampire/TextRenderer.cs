@@ -15,7 +15,7 @@ public class TextRenderer
         _columns = columns;
         _rows = rows;
 
-        // Blend lets the transparent background of each glyph show through
+        // blend lets the transparent background of each glyph show through
         // instead of drawing a solid box around every letter.
         GL.Enable(EnableCap.Blend);
         GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);

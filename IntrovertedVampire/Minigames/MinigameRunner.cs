@@ -10,7 +10,14 @@ public class MinigameRunner
 
     public MinigameRunner(IMinigame[] minigames)
     {
-        _minigames = minigames;
+        _minigames = Shuffle(minigames);
+    }
+
+    private static IMinigame[] Shuffle(IMinigame[] source)
+    {
+        IMinigame[] arr = (IMinigame[])source.Clone();
+        Random.Shared.Shuffle(arr);
+        return arr;
     }
 
     public void Update(float deltaTime, InputSystem input)
@@ -25,7 +32,6 @@ public class MinigameRunner
 
     public void Draw()
     {
-
         if (AllCompleted) return;
         _minigames[_currentIndex].Draw();
     }

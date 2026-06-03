@@ -11,7 +11,7 @@ public class InputSystem
         _window = window;
     }
 
-    // Returns mouse position normalized to [-1, 1] range, matching OpenGL's coordinate system
+    // returns mouse position normalized to [-1, 1] range, matching OpenGL's coordinate system
     public Vector2 MousePosition
     {
         get
@@ -19,15 +19,18 @@ public class InputSystem
             var pixel = _window.MousePosition;
             var size = _window.ClientSize;
             float x = (pixel.X / size.X) * 2f - 1f;
-            float y = 1f - (pixel.Y / size.Y) * 2f; // Y is flipped: OpenGL's Y goes up, window pixels go down
+            float y = 1f - (pixel.Y / size.Y) * 2f; // y is flipped
             return new Vector2(x, y);
         }
     }
 
     public bool IsMouseClicked => _window.IsMouseButtonPressed(MouseButton.Left);
+    public bool IsKeyPressed(Keys key) => _window.IsKeyPressed(key);
     public bool IsClickInRect(float x, float y, float width, float height)
     {
         var pos = MousePosition;
+
+        // if mouse is clicked and the position is within the rectangle
         return IsMouseClicked &&
             pos.X >= x && pos.X <= x + width &&
             pos.Y >= y && pos.Y <= y + height;

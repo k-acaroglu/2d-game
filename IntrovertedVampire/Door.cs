@@ -1,5 +1,4 @@
 public enum DoorState { Closed, Opening, Open, Closing }
-
 public class Door
 {
     public DoorState State { get; private set; } = DoorState.Closed;
